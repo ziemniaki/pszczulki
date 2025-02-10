@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spreadable Honeycomb Energy</title>
+  <style>
+    /* A full–screen canvas with a soft gradient background */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      /* A gentle gradient for a stunning backdrop */
+      background: linear-gradient(135deg, #fdfcfb, #e2d1c3);
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    /***************************************************************
+     *  Canvas and Audio Setup
+     ***************************************************************/
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Resize canvas to fill the window.
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    // Initialize AudioContext and master gain node.
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioCtx.destination);
+
+    // Ensure the AudioContext is resumed on a user gesture.
+    function resumeAudioContext() {
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
+      }
+    }
+
+    /***************************************************************
+     *  Honeycomb Grid Setup
+     ***************************************************************/
+    // Hexagon dimensions.
+    const hexRadius = 40;
+    const hexHeight = Math.sqrt(3) * hexRadius;
+    const hexWidth = 2 * hexRadius;
+    // For a honeycomb layout, horizontal distance is 75% of the width.
+    const horizDist = hexWidth * 0.75;
+
+    // Build the grid.
+    let hexagons = [];
+    const cols = Math.ceil(canvas.width / horizDist) + 1;
+    const rows = Math.ceil(canvas.height / (hexHeight * 0.75)) + 1;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x = col * horizDist + ((row % 2) * horizDist / 2);
+        const y = row * (hexHeight * 0.75);
+        hexagons.push({
+          row,
+          col,
+          x,
+          y,
+          energy: 0,            // Energy level (0 to 100)
+          active: false,        // Whether the cell is manually toggled on
+          assignedPitches: [],  // Fixed pitches for sonification
+          neighbors: []         // Will hold references to neighbor hexagons
+        });
+      }
+    }
+
+    // For each hexagon, find its neighbors (using a distance threshold).
+    hexagons.forEach(h => {
+      h.neighbors = hexagons.filter(other => {
+        if (other === h) return false;
+        const dx = other.x - h.x;
+        const dy = other.y - h.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        return dist < hexRadius * 1.9;
+      });
+    });
+
+    /***************************************************************
+     *  Pitch Assignment for Sonification
+     ***************************************************************/
+    // Use just intonation ratios for a C Lydian–inspired scale.
+    const scaleRatios = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8];
+
+    // Utility: randomly select unique elements.
+    function getRandomUniqueElements(arr, count) {
+      const arrCopy = arr.slice();
+      const result = [];
+      for (let i = 0; i < count && arrCopy.length > 0; i++) {
+        const idx = Math.floor(Math.random() * arrCopy.length);
+        result.push(arrCopy.splice(idx, 1)[0]);
+      }
+      return result;
+    }
+
+    // Assign six fixed pitches to each hexagon.
+    hexagons.forEach(h => {
+      const chosenRatios = getRandomUniqueElements(scaleRatios, 6);
+      h.assignedPitches = chosenRatios.map(ratio => {
+        // Randomly choose an octave (0 to 7) so that octave 3 approximates 420 Hz.
+        const octave = Math.floor(Math.random() * 8);
+        return 420 * ratio * Math.pow(2, octave - 3);
+      });
+    });
+
+    /***************************************************************
+     *  Drawing Functions
+     ***************************************************************/
+    function drawHexagon(h) {
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 180 * (60 * i - 30);
+        const x_i = h.x + hexRadius * Math.cos(angle);
+        const y_i = h.y + hexRadius * Math.sin(angle);
+        if (i === 0) {
+          ctx.moveTo(x_i, y_i);
+        } else {
+          ctx.lineTo(x_i, y_i);
+        }
+      }
+      ctx.closePath();
+
+      // Base color: a mellow yellowish-brown.
+      const baseColor = { r: 120, g: 090, b: 050 };
+      const brightnessFactor = h.energy / 100;
+      const r = Math.min(255, baseColor.r + brightnessFactor * (255 - baseColor.r));
+      const g = Math.min(255, baseColor.g + brightnessFactor * (255 - baseColor.g));
+      const b = Math.min(255, baseColor.b + brightnessFactor * (255 - baseColor.b));
+      ctx.fillStyle = `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+      ctx.fill();
+
+      // Add a strong glow if there is energy.
+      if (h.energy > 0) {
+        ctx.shadowColor = `rgba(255, 255, 200, ${brightnessFactor})`;
+        ctx.shadowBlur = 90 * brightnessFactor;
+      }
+      ctx.strokeStyle = "#8b6f47";
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /***************************************************************
+     *  Simulation Update Loop
+     ***************************************************************/
+    let lastTime = performance.now();
+    const activeRate = 80;  // Energy increase per second for active cells.
+    const decayRate = 5;    // Energy decay per second for inactive cells.
+
+    function update(time) {
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+
+      // Update energy levels:
+      hexagons.forEach(h => {
+        if (h.active) {
+          // Active cells continuously accumulate energy (up to 100).
+          h.energy = Math.min(100, h.energy + activeRate * dt);
+        } else {
+          // Inactive cells gradually lose energy.
+          h.energy = Math.max(0, h.energy - decayRate * dt);
+        }
+      });
+
+      draw();
+      requestAnimationFrame(update);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Optionally, one might add additional background effects here.
+      hexagons.forEach(h => drawHexagon(h));
+    }
+    requestAnimationFrame(update);
+
+    /***************************************************************
+     *  Energy Spillage (Propagation) Mechanism
+     ***************************************************************/
+    // Every 100ms, allow energy to "spill" from high–energy hexagons to neighbors.
+    const spillageInterval = 100; // in milliseconds
+    const spillageThreshold = 30; // Minimum energy to consider spillage.
+    const spillageAmount = 50;    // Energy amount transferred per spill.
+    const spillageProbability = 0.2; // Chance per neighbor per interval.
+
+    setInterval(() => {
+      hexagons.forEach(h => {
+        if (h.energy >= spillageThreshold) {
+          h.neighbors.forEach(n => {
+            if (Math.random() < spillageProbability && h.energy >= spillageAmount) {
+              h.energy -= spillageAmount;
+              n.energy = Math.min(100, n.energy + spillageAmount);
+              triggerSound(n);
+            }
+          });
+        }
+      });
+    }, spillageInterval);
+
+    /***************************************************************
+     *  Sonification
+     ***************************************************************/
+    // Trigger sound based on the cell's current energy.
+    // The number of pitches is determined by energy levels:
+    //   10–50: 3 pitches, 50–90: 4 pitches, 90–100: 5 pitches, and 100: 6 pitches.
+    function triggerSound(h) {
+      let numPitches = 0;
+      if (h.energy >= 10 && h.energy < 50) {
+        numPitches = 3;
+      } else if (h.energy >= 50 && h.energy < 90) {
+        numPitches = 4;
+      } else if (h.energy >= 90 && h.energy < 100) {
+        numPitches = 5;
+      } else if (h.energy >= 100) {
+        numPitches = 6;
+      }
+      if (numPitches > 0) {
+        const pitches = getRandomUniqueElements(h.assignedPitches, numPitches);
+        pitches.forEach(freq => playTone(freq, 0.5));
+      }
+    }
+
+    // Play a tone with a warm, mellow timbre using a sine oscillator.
+    function playTone(frequency, duration) {
+      const osc = audioCtx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = frequency;
+
+      const gainNode = audioCtx.createGain();
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+      gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(masterGain);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    /***************************************************************
+     *  User Interaction: Toggle Activation on Click
+     ***************************************************************/
+    // Clicking on a hexagon toggles its "active" state.
+    canvas.addEventListener("click", (e) => {
+      resumeAudioContext(); // Ensure the audio context is active.
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hex = getHexagonAt(x, y);
+      if (hex) {
+        hex.active = !hex.active;
+        // Optionally, trigger an immediate sound on toggle.
+        triggerSound(hex);
+      }
+    });
+
+    // Utility: Determine if a point lies within a polygon.
+    function pointInPolygon(point, vertices) {
+      let inside = false;
+      for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const xi = vertices[i].x, yi = vertices[i].y;
+        const xj = vertices[j].x, yj = vertices[j].y;
+        const intersect = ((yi > point.y) !== (yj > point.y)) &&
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    // Utility: Given an (x, y) coordinate, find the hexagon containing it.
+    function getHexagonAt(x, y) {
+      for (let i = 0; i < hexagons.length; i++) {
+        const h = hexagons[i];
+        const vertices = [];
+        for (let j = 0; j < 6; j++) {
+          const angle = Math.PI / 180 * (60 * j - 30);
+          vertices.push({ x: h.x + hexRadius * Math.cos(angle), y: h.y + hexRadius * Math.sin(angle) });
+        }
+        if (pointInPolygon({ x, y }, vertices)) {
+          return h;
+        }
+      }
+      return null;
+    }
+    /***************************************************************
+     *  End of Application Code
+     ***************************************************************/
+  </script>
+</body>
+</html>
