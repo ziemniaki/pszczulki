@@ -1,0 +1,808 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/index.html b/index.html
+index 962d91646e282128e13df1d28596cd8ed25d8680..7fc73d28f5ca3f64bbd015e3f662647837ae0294 100644
+--- a/index.html
++++ b/index.html
+@@ -1,304 +1,580 @@
+ <!DOCTYPE html>
+-<html lang="en">
++<html lang="pl">
+ <head>
+   <meta charset="UTF-8">
+-  <title>Spreadable Honeycomb Energy</title>
++  <title>Energetyczna Pasieka 2.0</title>
+   <style>
+-    /* A full–screen canvas with a soft gradient background */
+     html, body {
+       margin: 0;
+       padding: 0;
+       overflow: hidden;
+-      /* A gentle gradient for a stunning backdrop */
+-      background: linear-gradient(135deg, #fdfcfb, #e2d1c3);
+-    }
+-    canvas {
+-      display: block;
++      background: #000;
+     }
++    canvas { display:block; }
+   </style>
+ </head>
+ <body>
+   <canvas id="canvas"></canvas>
+   <script>
+     /***************************************************************
+-     *  Canvas and Audio Setup
++     * Canvas setup
+      ***************************************************************/
+-    const canvas = document.getElementById("canvas");
+-    const ctx = canvas.getContext("2d");
+-
+-    // Resize canvas to fill the window.
+-    function resizeCanvas() {
++    const canvas = document.getElementById('canvas');
++    const ctx = canvas.getContext('2d');
++    function resize(){
+       canvas.width = window.innerWidth;
+       canvas.height = window.innerHeight;
+     }
+-    resizeCanvas();
+-    window.addEventListener("resize", resizeCanvas);
++    resize();
++    window.addEventListener('resize', resize);
+ 
+-    // Initialize AudioContext and master gain node.
++    /***************************************************************
++     * Audio setup with piano sample
++     ***************************************************************/
+     const AudioContext = window.AudioContext || window.webkitAudioContext;
+     const audioCtx = new AudioContext();
+     const masterGain = audioCtx.createGain();
+-    masterGain.gain.value = 0.3;
++    masterGain.gain.value = 0.4;
+     masterGain.connect(audioCtx.destination);
++    let sampleBuffer = null;
++const sampleData = 'data:audio/ogg;base64,' +
++  "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" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAIAABwCAAAuh0JAVAUCcAIDBcSwLAAAcSdIsAABw" +
++  "JEvTAADA0jRRBAAAS9NEEQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
++  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAADAgAMAQIAJZaDQkJUAQBQAgEExPA1gWQDLAmgaQNMA" +
++  "ngfwPIAoAgABAAAFDgAAATZoSiwOUGjISgAgCgDAoCiWZVmeB03TNFGEpmmaKELTNE8UoWmaJooQ" +
++  "Rc8zTXii55kmTFMUTROIomkKAAAocAAACLBBU2JxgEJDVgIAIQEABkexLE/zPM8TRdNUVWia54mi" +
++  "KIqmaaoqNM3zRFEUTdM0VRWa5nmiKIqmqaqqCk3zPFEURdNUVVWF54miKJqmaaqq68LzRFEUTdM0" +
++  "VdV1IYqiaJqmqaqq67pAFE3TNFVVVV0XiKJpmqaquq4sA1E0TdNUVdeVZWCaqqqqquu6sgxQTVVV" +
++  "VdeVZYCquqrruq4sA1RVdV3XlWUZ4Lqu68qybNsAXNd1Zdm2BQAAHDgAAAQYQScZVRZhowkXHoBC" +
++  "Q1YEAFEAAIAxTCmmlGFMQighNIpJCCmETEpKqZVUQUglpVIqCKmkVEpGpaWUUsoglFJSKhWEVEoq" +
++  "pQAAsAMHALADC6HQkJUAQB4AAEGIUowxxpyUUinGnHNOSqkUY845J6VkjDHnnJNSMsaYc85JKR1z" +
++  "zjnnpJSMOeecc1JK55xzzjkppZTOOeeclFJKCJ1zTkoppXPOOScAAKjAAQAgwEaRzQlGggoNWQkA" +
++  "pAIAGBzHsjRN0zxPFDVJ0jTP8zxRNE1NsjTN8zxPFE2T53meKIqiaaoqz/M8URRF01RVriuKpmma" +
++  "qqqqZFkURdE0VVV1YZqmqaqq6rowTVFUVdV1Xciyaaqq68oybNs0VdV1ZRmoqqrKriwD11VV15Vl" +
++  "AQDgCQ4AQAU2rI5wUjQWWGjISgAgAwCAIAQhpRRCSimElFIIKaUQEgAAMOAAABBgQhkoNGRFABAn" +
++  "AAAgJKWCTkoloZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRS" +
++  "SimllFJKKaWUUkoppZRSSimllFJKKaWTUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkop" +
++  "pZRSSimllFJKKaWUklJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJJKaWUUkoppZRSSiml" +
++  "lFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRS" +
++  "SimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkop" +
++  "pZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWU" +
++  "UkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZRSSimllFJKKaWUUkoppZQKANCNcADQ" +
++  "fTChDBQashIASAUAAIxRijEIqcVWIcSYcxJaa61CiDHnJLSUYs+YcxBKaS22njHHIJSSWou9lM5J" +
++  "Sa21GHsqHaOSUksx9t5LKSWl2GLsvaeQQo4txth7zzGlFlursfdeY0qx1Rhj7733GGOrsdbee+8x" +
++  "tlZrjgUAYDY4AEAk2LA6wknRWGChISsBgJAAAMIYpRhjzDnnnHNOSskYc85BCCGEEEopGWPMOQgh" +
++  "hBBCKSVjzjkHIYRQQiilZMw56CCEUEIopZTOOQcdhBBCCaWUkjHnIIQQQgmllFI65yCEEEIopYRU" +
++  "SimdgxBCKCGEUkpJKYQQQgihhFBSKSmFEEIIIYRQQkolpRBCCCGEEEpIpaSUUgghhBBCCKWUlFIK" +
++  "JZQQQiihpJJKKaWEEEoIoaRUUiqplBJCCCWEkkpKKZVUSighhFIAAMCBAwBAgBF0klFlETaacOEB" +
++  "KDRkJQAQBQAAGQcdlJYbgJBy1FqHHIQUWwuRQwxajJ1yjEFKKWSQMcaklZJCxxik1GJLoYMUe8+5" +
++  "ldQCAAAgCAAIMAEEBggKvhACYgwAQBAiM0RCYRUsMCiDBod5APAAESERACQmKNIuLqDLABd0cdeB" +
++  "EIIQhCAWB1BAAg5OuOGJNzzhBifoFJU6EAAAAACABQB4AABAKICIiGauwuICI0Njg6PD4wNEAAAA" +
++  "AACwAOADAAAJASIimrkKiwuMDI0Njg6PD5AAAEAAAQAAAAAQQAACAgIAAAAAAAEAAAACAk9nZ1MA" +
++  "AECvAAAAAAAAnc0ZvgIAAACTaU+cLxQrK6CXnJqbnpucmKCaj4iOkoySjomOh4yIioeCh4eMgoKG" +
++  "gIWEfoCDf3+BgH55vNg7Da+1cto8AAAA4o2ZwX0tbgXE2PNQ3xr7cONrPntlsvYOmwLIm7rEj086" +
++  "Hf/vaknhYvd/P888t8n+e7oSBNfzgM/fet7FH/Pqad+BDBQDqKNaouT7ZQTetqU5+T+ea3TM1DHy" +
++  "f3RcF5rJhXH5ZPmlaZkeNtg/xFVyobw/npapMMIhJP0LECO0RuuLD59qaeEqgBeRppGbXCyExBIm" +
++  "BABAAhfXR1i6eckLrHQ9a/YWAIzFJQavBLuVKS9P/PRpL1e91yTs/snRHqAA6QDg/S8BCAB6wRFg" +
++  "+VYA0gFgcAwAtwOAV/+AG5gC+gcAMgD0/A0ANMApgSdHiOfi4pMF5sAU7CIECEiQRADeyFXhrVF7" +
++  "2bljuNcC+jjkAv7atKyZS5EbMOLgDwG49n0AyL9HB64XeIE2J2CxO2xaGyDBY0QAALi1B0I1z2UQ" +
++  "2GWtVQCvHwAAoAEA0OwOAAA8WioABJHcAch1APQfAJ6+WQNwHwB8BkAvAAJTAPDdbeAGkFQAcC8A" +
++  "FAwAvYUDwAPQcMTsyIqsAgB/R9AOHAMiNLGgMdwFHsnl5CXIw9HTup6gFmFTyEX8dtbTpCyNU24X" +
++  "IFR/SEDxay4A3n3yHvBRghf4QR8nYDRqmxG6Js4IIwAAgBsFQHRfGwBg/UMAAOFsGQAA/18AAECn" +
++  "CABo6QAAANBpAzwBaH4B0LkLwNvWAlD3AuB+AAhAkL4iAH4ZBbgRuBQA+gDgSdCfAUAEgCJPyHO/" +
++  "yIosrDyyaAN+ASo+UOACnsjl8TbOYdfu093iKEmoKJBLEpeZZq222rDdDRwAqT8AvPnbK4Cfv38J" +
++  "uGpwItLiEFszmhZkMiESAABAUK8YUa/5AAC6r/wBMHcbAADaLYCzpdcAAeAOAGef/ghAnwC4fALg" +
++  "PwDc/FQAfAcAff0AIADo1hsAvjwPABcA0DcAHAoATfwACDkCQPMB3JMs4EmgS8ihjRpZWjCgAP7H" +
++  "DdBjJu2qJ/UcuTXqQCz94yLlMfWxdGmV91/NLYZRhoynAfD9dSsArhKcOI0Oh11poUyeCAAAYBAF" +
++  "iDqXCsAZULgHAABuBgDQEKsDRwDA9D/PAgiAfglAP/hXAPYNAO97ALoJAOmfBAB/C4DPAQAFQKcT" +
++  "AG7/BQAKAUBZAhBRAwCdAEACbAl8BLg9VgBPAkqshIobETEgQYEL3sjl9LMKuWrLnZsR3sTgu+oa" +
++  "uQZcE2OKperK/9g/twtHmSL+kIBfZzqA71+5A1xvcAJ9XMBhtLsFakRooadEAAAA6jZgmiZWAMAO" +
++  "4wCwug4AAGoBALcyBAAAAIC6EAE4z/+4AC8B0h8wjwDQt0MAfAPgw58DQF8HAN8FAABAWkUs4EsA" +
++  "agCQ1gAwYEvgRYTb5AYubkTEBDW6KvQhwAXexw3Bs0S2uvVM+VEhe7VALiRus8pKDb3sf5U7nINb" +
++  "6g9Ay29+pgP4zUcvAB8lOANcoI8TMBodNgNYOJsmBAAAoGPgkzUMAACu9QMARKcjAAAsPu4BAMBJ" +
++  "AODmCwAAAPoSoA8A/PwOQHoH4M9DAOjtAuDtJwAIALgOAOd/DwjAJgCw/hUAAGoJAMMGEbBlcgMX" +
++  "NyKDSUBBhT4VqN7IBeI+pGl5dN2JoT4Wo1cO5ELuNoVpsVU1/qvpiAmppwHwlf/rALgacGIVlGC3" +
++  "uFMEbCJELRBZQgAAAAAsCzi8nQMgT4BIBgAAmgWAxWQWAABOBgAAABYAIEuvSj0MAM7yPQFoALz+" +
++  "Bvg4APUWAB0AvL4GgPtfAABQpQTAp1cKLqAZAACgrwQSAHIpANgEsGVzIxc3AB8U3Ah9AP7Htemr" +
++  "tXLVXZ3w32tR+Kl/XMzdpjakGlY1/tTFqvhkfwC4/vcA8ONv3nfgqsCJ02h3GJWAIUShlBAAAAAH" +
++  "AeaaqwAAtf3+AOT2AQDAM4Cd/3wRgANAfAIg/uQhALdHAeRVAdAHgHgaAOkCIP4VAADAugD4uysA" +
++  "KgCICsBC4b4LAAgAYCpgCuy83MgNQAHsCxJWFi76qKACfsjl2UeVlDyjd/wX2/PaFH7qItfjR9VN" +
++  "6FKv774xfT0NMlb2LwDg508uAdcLnEAfD7BbPBQBoxabmBEFAAAAAJAnAIDimDsABdcAAKBZAFAs" +
++  "AwAADQAAAACgCiiPJq9QB86XOQNwDdDXCrAbBRDvF4DOABjeAOALAABkXgHgrwLgCgDKAaA3ADAA" +
++  "aP8FAAWAmAJZ7iFW5AZWDpjCCKjQBx7IVfBHaWTJM7rrj0fdfeoel6q3soaU06rvvvV6YchYzT8B" +
++  "AHyU4PjgRaRFmMMoTJuYESEAAAAAgP0SAHEDANOzEQAAz5/9AgCABwGEuABK6Y/pDQCAnpieZwQA" +
++  "gJ4uAKuf/QkAj3sBNBcA/AU8B6ALgEe/B4ACoKs1AP4WAFoDeAB6AgAPAP1LABAA0EMgYC8LN7Ii" +
++  "UEI/wAD+x7XoZ2lIdUTv+OM1aaIlcg18RuQuto7+GfuvRwUZq3oaAP/x+gGAqwYnTqPRoblIiSUR" +
++  "EgAAADDBAJxaCoB1OQOFAQAAcAAAoJ4OHzYCgLMpzwEUID4B4OIPAMgTgJzOAOgDwFoBUAPg+3cA" +
++  "EACwUAD0DgAlgAoaAGAA6Hy7AFDAKBDxYOFG0CUEpAgDBt7HVcA7yFRHdfK35rWJrloi14OPxNbU" +
++  "ssj9M3anZ4yMxR8A/nnzAPDr0RnghD4uYM20c1ikxBEgAAAAAMIAohI6AMCVlAEAgFsZAgCA6X/P" +
++  "Atj/p68B8C8AdAsBXgfAuwBcVgAFfykACgBpGugDpAXQBv8KABkAWr8UAAKwBXLosXAjN4uIqwK+" +
++  "x1XgV2mtiyPa3bvKD3GiW/3jSvLdsHHdqGq+a3o6AP8EAHBCHy9g1Na5FpWYEAAEAAAAgIsHAMYd" +
++  "AODBCwAAIEoEIM3uWlb3AABs2n18GACc5z8D0CWfAPB7AHobQF8C0J8CgP4AKIsAUALg9wAQI7Az" +
++  "EkBPAKABgKQLABkA+s1AAlsgy22yIp/ITUgWvsdV4Z9SjaktO92z5jFxuunjUuKz1NH0pSPfdT1j" +
++  "efFPAABXDV6sGI0OGBYphCMAAAEAAAD1BwD2K4ALAADQJUBEAfCyfO/EDgAgd296cRQApL/LAIg1" +
++  "QP4CcD76NgD3fQBk9xsAXQBkBsAVAL6/AUBsAKCPQAvgCsAEfBUAMgD0vQsAiAJfAFPcHiuyjQiI" +
++  "qAW+x+XBr8ZIU0fUvGt+xGEKcccV1nPO1uTRqZ41PV8B/wIAPm0+B5zQxwOMpp1DEgmzAQAAAQAA" +
++  "AHEGAJCSCQAATZ0AAAAaQQDBg/HWehBTngOY/csCAP0egPsBng0A5xMAnQCg1wEyePcWACMBIAUN" +
++  "tACaHgD3BgBqAPDPAEADbQC4CiJAOViRaYhIC97H5djvao2pI5uedT/iCWjkFvweOppuVNkzZr+e" +
++  "hoF/AgA4oY8TsBgdGhUMwQIAAAIAAACmlwD0BwCAWpYBAADxBCDCvBU76wEAyqs9mAEA098vADh8" +
++  "zBcAxHcA9LYHnrsA8McegP4FwP46ANoD4NF3AIhNAOTHAiB9ANCvAtyAOgBwng9aAPAGYD6sCP0k" +
++  "BBREnsdVwJ9CGtXNbHvW3ISpwiO34eeuG9PNrC/vmDG3MEPgnwAATpE2o10MScEQEQAAEAAAAPBw" +
++  "CUCcAUAMgCKOG7/QCADoldb6DQUA8gdAnL/xPQD6PQCFHQDOZj8C4LALgGf2XIDjCgCtDgB8B4DY" +
++  "AMDXAEgfAPxRALoDQKcEgB4c0QKADwvovLEi84BkAb7IFe6nJ+vyZnrG5Nxi1NDITfC9i43rNjk9" +
++  "Y8b1umBX/AsA+H71DnA6TaPDghxmAwAQAAAAAM4tAIDjGBUAIAqAEub8/T6w8N00gPi7MQCuvwOg" +
++  "nwHoDx8B4AcAOnxkBzA3ALT7AOA7AIwEAIcCwD8AWL8C7CItbgkAMloA6FsQAZ0zK7INCAio3siV" +
++  "5tfSpOLoFHfMuFvFFRa5iX12BtO1JDsxObEq4A8BWv71TAfwpW9fAE7o4wQsRrsRsvgBAAAAAADw" +
++  "B8CnrtkAAJhXfwAAPNMGAACdUgDc/rPXALh5B0CnPyD/AZCfPgHoFwCudgEgvQDwHQAiBUD6BoB/" +
++  "ALjTAuALAHANALkAAKG2kBdgvWNFVkBABN7HJfGfYazKh+au+TGPBURyK/vcRK7iTqoTsyY2GPwT" +
++  "AMAp0ma0WSBpiRgAAAAAAADg8gmAEwBQAcgw/c/7vQCAuDazDQOA5FMKwOKHAFw/BKAvAJzP3wNg" +
++  "dl0AflB+AOcDAO4DgM8AiI1IBPDxHwD8DoB7ewGgqgGg7DcAGMgCGdY/uFgQAN7IlfFnGeu6kQXP" +
++  "mJzXpC4gj0u5j1bkqptFdtf0Ugr4FwDw47fuO3CKtBi1GEocKgEAAAAAAACMOwBA9zo+ACARFPAx" +
++  "bZWcLog8AIb/5BIALx8B0NMHQPzoBoDH6wLwaglAvgHgGgDSHwD6AaBKALgNAH0DwIcB0H+fAHAA" +
++  "oPUsABQ6Ig+A1K8gcCECvshl7vcQRuVNcMf+8uPxPjRyi/jsjKrOpnNi1vRyGPwLAPj8zUvAitNo" +
++  "1FoADjkBAAAAAAAA5AkAwHzmDgAoCqC0NSG8Doz/DgD2f9wJwIszAOITAPH7NQBfqwJIrgBIDYB8" +
++  "AID7AHA/AKQCgDIA6AOANG2ABL4EgMK9CgAEqY0cAEJ8KgIXIv7HRfR3l0blQ3JOYT/mEEI0chP7" +
++  "3D1X3RyqEzOm50HgnwAATovRqDWsJQQBAAAAAAAAgMMrAHEGgKgXoMSun3c0AACso/kIAGhuAIir" +
++  "vATgZQBw/xUA2f0G4PMJgN8nALqdADC8FYD0AuBCAKQQAEkFgL4AIH0VQIKbfwDQDAD3BgAGrg+y" +
++  "oPctAr7HRfRXhFXdruRT5bVEBxq5TbyHjiq2ZnFixusnQOCfAABWaQAiHUYxDJlJCEIAAAAAAACA" +
++  "+wUA63IGNv4AAIAfAKICQJfmm85mAQDqafuwEQAMXyNATwD9B6B/eA2AVwHwFgCeALh8LADdAdAH" +
++  "AAcAtoI2wFsBxBcFwAQFECC/RAb0vkFABL7HhfirMFZ1O4jxrrvF0UIjt4jPIXKV99E5MWv6iQj8" +
++  "CwD44ugMsGLFbhRzyDxkJAAAAAAAAIBTAADYSRkAgCgAgse1b/aCLBbA/i8ZALwEwKu/APRfVgD4" +
++  "EgDOAehkAC7PAtABgH4BgDYAelhCBSgB8EUAYMIqHACGLgoAot6VAgHex0XsdwEqHuRzBj9WiQBg" +
++  "j2u4j6ZtRDeHNZ2anAxw418AwOX/+gJYpQQ4LUYNCYZDIAIAAAEAAABOUwAA7dcBYMMDAAC4FYBG" +
++  "AKjD5fQ7ysD4HADcAPoWgPP02wD0HwD6EwB9AODVBgBdAOgHAAKAlEWAOy2AAvUXABPWEwAEpY8E" +
++  "emcWxAXexyXF3y4Q+QSpnpofGvcgZpHb2cdiVHFvix37S05BKsY/AQCsiNR2B4fiEgIRAIAAAAAA" +
++  "cPEBwL4AAHEA0mz88IkeAEBuF9wxCgC6EIDmAU8AeFkAensGEH9yA0BfHwAKB+AmAPRyAHQA4G0A" +
++  "AADYDvoAPQHgXwAw4VYBgABxTxTQfUdAsAC+yNX+1yaNqidLTuyfxy6ERW7HHyMyUfewOjE9/RvE" +
++  "4F8AwDfNt4AV6OME7EatBUSaEAgAAAAAAAAA+g0AQPabAgCAZpcBAABiAAg/npvbAcNhBLD623IA" +
++  "rgOAwg7gZQOAdwDodAdgfwWALgD0CwAAQJUCABQOABWABPFLAcAA0LwLAGgAEB4gAzpuXL7HBexX" +
++  "RKbqrIpd8zgX0Mjt8nMxqDqHxY4Z078BFuNfAMDz/3m5gRWnxbQoSOIQCAAAAAAAAADiEgDAlPUK" +
++  "AGACIPz8pbIeZHsB3J6+C8DNDQD9DMDZ7g8A+JcA8OonAPwAgM3rAAJ+fQIAANgCAH0DNyL6AMAA" +
++  "0P4LAJTUQh6Ikgvex0X0bxeZyHfW7Co/KdSDTSO3sa/Lc5Z30zkxeT0/gX8BAPGvbAErTm1qE5KO" +
++  "iAAQAAAAAIDpywAAv3B9AEAMAIr8W7C9EeznANRS5wBcXwMQ7wDoDx8B0NcLgPQHoCsAXN0CyKKw" +
++  "FwAGQJoKAP/OgAi9AMAA0L8GAMKoCNjDhVIA3sjV6e8mc1bvrDkxXX7MaQs2jdxRfG6xYXVy2TF9" +
++  "vX4g4w8J+O9XrwC+fu0OsEAfJ2BRYpPrGABAAAAAAPgBIDw1FQDwfvEAAODmFAAArKYlgNV/HwDQ" +
++  "fwD0BdC/AHgNAP8DoF0AkENhfwAIALoJAP69BlakgF4AYADoLRwAYLQR8ZaLKwDeyDXxz+aJ5XsV" +
++  "7Jguj1N2Mo3cSX8sNqKfLG3HjNIzA/AHgH+cdABffLgALCIdptOGApEAIQIAAACgDoDJ0joAAGqN" +
++  "HwBkSwHs/ngJQH4GoN0HwPnt/wDAFwD0MQDyVQB6DSCL+BkACgC9JwBw+xOwuIE+668AAEYbkTu4" +
++  "IgZEAN7HhexPlzmrz6yFXfMTTr2olUXuxD4337J8gmXOmCy38TP4FwCQ/xEtYEWk0bTbuCUSIAQA" +
++  "AAAAAC4PAADOzzoAoABQj9vZwyUwPFcAOvEagH4GIP0BuP6T7wDIFwBaALqdAJAPAAriEwAUAGkV" +
++  "ATD/GbDQB10AEADw6x8AAG0E7uJCcQH+x4XuzzK56E9wl13zEw4uMNOYnfR7E1uTd3QNMT29fj+t" +
++  "J/8CAH781n0HTujjASKVw1ZHQgAAAAAAAIDWEwCgbIofAAAlMgAAQFCADOtPvqYLXBkA+vENAPwM" +
++  "gG4A6QCgZwB8CYC6BZAQ7wAgAGB7AND/BS4SKyIAoF8VAAAFWfFWLhHeyNXpz+m5yHd22o7J+WmO" +
++  "Z95o5I76Y/dBdTvpy47puYNZffgXAPDp/DkgUqQWoa0VGQEAAAAAAAAAyDsAgMvuAIACgLLkS5Yu" +
++  "KHZKAPUfHAPAXwHo6QJw9sWfANAJABIAOgagBJAeAAwAdwoAcP73QGVBAEDfOwAAtYUcdwDeyDXl" +
++  "9yYzEZ/RbDumy48L9KI9GrOzfF9cmO6Olimmr5fbpDv5FwBw8d+xAE6RFqWtFYgIAAAAAAAAAPIV" +
++  "AMDKugEAUQCUx5+sUAdcAUBzrgHwMwD0AnDzwfcAfCmAZAWAvwAoByjo7Q+ADIAUNAB49PdAZQVa" +
++  "3O8BAGiEDE6xAL7HJdnf5Un03+jbtp8e6AX6NHIn/X5iK+rMurFj/9zm07mHfwEAy3+tLWAF+riA" +
++  "WIltdQgEAAAAAAAAAPdXAIDH5wMA4LgAAAAEgBLf/p5vAEM2ADl//EEA4q8AXAioB8AlAP4BIBVA" +
++  "Qu8A0AKAZwHwszsFC4ULCQD0dAAAaCEPmCIA3siV6e9FJuo7+Js79pefFKoCPhq5k3w/uhH9juo4" +
++  "MTm3MM+P/wB4joVTwGJqa3UkAAAAAAAAAHCvAwB4Mde+AQCiAHRJlOcpL4htBRDfXgCgf4EcOP+f" +
++  "HwKQbwCcCsDf+0cAXAHk0TsABoB7AoAvZgWFCwIAva0BAFIbCf9ABN7IlfXvJZKoN//mjv3lZ09R" +
++  "oEcf17OPJTbi2kE8u8qPEWde8S8A4JW/9AWwItKKErXlkQAAAAAAAADAKQAAiH0AAIoA1LFq+s0R" +
++  "sLkaANy3vQAgvgMgvQBcX/odAPkfAKsA4G8A0AYI6B0ABgoA/n5VsDCokcrqBwBAHgV7EQHeyJX1" +
++  "76NW5Gf0nTsm58dDvYAefdyC3xtb1u8svnfNbc4a/BMAwAkNDzDWNq5DAAAAQAAAAAC4mALgBADQ" +
++  "nCMAAIASAKM89ul7PQCA1BTpOwwAOiEAoj99GoD+BX4EoA0AfYMbieg/AJQASN8A+PnDAoEEagBQ" +
++  "AYD0AQCTChJgigveyBXj37s0oj6T7zmxf376uhfWo5E7m9fFVnSH9N6xv9zGHLKLfwEAP169BaxA" +
++  "m3cBRNbWII0AAAAAAQAAAPoHAIA9QgEAULvpHwAAQABIM+my8TNguLYCkL+mAMR3kKPbAKAEQHwG" +
++  "N5JB/wEwAKgCgFf+B3A6ACjAYnRRWIcFAN7IFfXvqUbUd/Bzn5icXwTpBXQ0cuf42hnFMqr0d2Jy" +
++  "buIYgX8BAJ8/ugScAmKlbZA4IQEAAAAAAACAuAEAkMMDAFAAhMaIp4LhthGAw0dvAXDzPSTwcNy/" +
++  "A9AcAKoB8BcA9wPIo6cPABkA1y0AzP4PuHBfAFDQAwCCMXAAAd7HRebvworuXfz97ZqfHvWMTSN3" +
++  "N483F2I5+cQd+8tNvAD4FwDQ/vdcACvQcAGttDUoTggAAAAAAAAAQFwCAIhTswEAcPQLAAAAAERP" +
++  "OzqnHnTrEkDvOQPg+js0CYCVAPQdABQCBPQMAAGA1gCILwH+AUBBGwAMCR9PZ2dTAABAXwEAAAAA" +
++  "AJ3NGb4DAAAAVJ9hVCxzcW9vZ2dgW1lZVklJTEI+OzAwMjEsJyUkKicrKS4mJiQnLCcuLysvLSor" +
++  "LB7IheXvJVH9e/j7t/1odk/EIHc2j7vciG7ni3bNrcIR+BcAcP+lFbACbX4gJlEbJgQAAAAAAAAA" +
++  "YL0BAJwt6wEAoJNYAgAAAICibnv56UYwXguA/DIC4OZ7KHRrALQGwD+w0NMHgAdKAOJLQFQjBZFK" +
++  "hQU+yBX1110R3bP5///48dUNArmLvt0ZxLqz8m+7iSMGfgAW/nu9g+dYWIFsFKFNSESIAAAAAAAA" +
++  "AACwnU3VAADdYx8NALKtAO5P3QLg0XfAo4X/AKAPAJwB0AsAhQPcDwAZAKcEwKtvYEXoDwATUKFG" +
++  "AF7I9dPX27io7/aXp+YnV0NAIXd3t4/nqr8p/7c4HQZ/APjHUQcwfsQCWIGGpwhGA1GNEQEAAAAA" +
++  "AAAAAMDiYQCAqngAABhOvQEAgMNmBNDdhwA8fAcPAAgAegHgN4B+ABBgCkBhAwAtgF9gAAMRFV7I" +
++  "dfP3xzRR7xn8Hj8qNVwp5K719hVS1B34OzW3Bhwj/AsAWD/fgBVoeIAIZag4IAQAACIAAAAAOG8A" +
++  "gGLwBgCgncgAAAAAoF6SpTJGgcUA8MsagEcPkRoAGXAPQIBfAAB0CUBhAywk0AcAKLioAn7ILcvH" +
++  "3xyR39PzPn4yteCQe9Tbv1z0N/m53fS6Y4wfAL70F+B0DKxAFqFMBYkIAAAAAAAAAAAAsALlAwA0" +
++  "d34FAI6nAUDf3wPw9hHw+JUfAZAAoAegOoCI/gKAIAOg38AK0AcABQx+yO37+2ebiHN4vrcfld99" +
++  "HHLPfv23JvpDPUd3EG2M8QPA1T+Bq4YVyCKU0pCQAAEAAAAAAAAAgGnoAAAczL0qAGABgMxuAHh3" +
++  "A9z8+BMA9QAIQLsGCFAIACMPoG8A6AmA6AIggkEAfsjtx+tvjojP6fk8fjQdcMg9x9t/fiKfKDqu" +
++  "Rw3+AFB+HgDi5QpYgUxmIyRACAAAAAAAAAAAwEzLFwBAu2wDgIMRgF/OAXh7DfR3AaDPD9A1QKQA" +
++  "CcD3MgBoA6ADAAGofshdtvdfmsI57vfxnrVMIvecb/+aKuyo7O2mkjWteMFfskMWYSoDABAAAAAA" +
++  "AAAAAACAm9+HbQD/+7E/FyBOAND+AaB/H+DLFQBpACCAXArIoTsAhBsB7NfAAn7IPbbXH00Zxd+9" +
++  "XdPVSyL3PG6/OYXBvY/sVZPFB/4SngZiSCJUEwACAAAAAAAAAAAAYKV0KwCAmfklAECxqQFk+Q+A" +
++  "XwHS7geABgABSL8BiQJuBkAnYEUVnsjdXm5f05U2nb39EHeETSL3sr3+1iOI3rYoSuvwgVOAEhZe" +
++  "hFIEEAAAAAAAAAAAAID7jToCAFjvFwCgLwDw7zUAvwsF6D+AwWABtLoADQAYAUC7AFhIJACeyL1e" +
++  "tl+O0o53295cFVwSuffL9lu/IPvastLgghIaUhFaAUAIAAAAAAAAAAAeJlsBAIA/XXoUUNcNgPsH" +
++  "gMIOoBeACQsBUHgATQCQACAlALQzWFgYAJ7IfVzPb9yK4m17zxISuY/LoW+HAo7jYUjgNK4YAUAI" +
++  "AAAAAAAAAMBzXiuAz1MLIM8CSKsPgJ4uRJpMqPwA9ABE2hzBc2GCAgmeyL1ft994Fc3XdpX/IZH7" +
++  "vOzf9ghojjf7oeHkWHEDAAgAAAAABAAAALjiugDOvgLcLN0AUNhBjjaDCqAHICxtLgDKBADfAIMK" +
++  "nsh9XM9vvYLmbXuzJSRy39v9225BcGyHKlg0pAoWAQASAAAAAAAAAABb3gtg97cArgHQGwB6uoB+" +
++  "ALTBEeA2QKRQAZCrAqDbC4gYAJ7IfV/2bz2C5Ok4vZDI3fxsX6YANmDkKEVwEQAJAQAAIAAAAACs" +
++  "rwNQPyCQAdDBhC2A6AJUAhQXAFIFYHQAIhYqF57I/Xu0bywB3EAi97+jfOkCuAELRwPFgoQAAAAA" +
++  "AAAAAOQ6ADkCRAaALjrBAwCAVQCIdalCU0oaDwQkjAsDnsj996xfmgA2kMj976hfugA2YAlJHSAR" +
++  "AAAAAAAAAAA2APQYQCSRQC8A0h6AoEUJBhiVT0ZKUCwoRACeyP3vKF+6AG4gkfvfUb50AdyAioIH" +
++  "gAAAAAAAAAAAAFdwE4EAiS2hEUguBRVDABaeyP3vKF+6AG4gkfvvUb5MAdwAQ6CICCABAAAAAAAA" +
++  "ABe2QIR2FQAgcaRStfsoVACeyP3vKF+6AG4gkfvfUb50AdwAR1Q4AAgAAAAAAAAA3ABQApBVUAUA" +
++  "wbVDhctPU3ChAp7I/e8oX7oAbiCR+99RvnQB3EBIFRYBAAAAAAAAAAAABIsWAIBEF5cAgAUV1QIV" +
++  "AACeyP3vKF+6AG4gkfvvWb5MAdxAPBIAAAAAAAAAAAAQiCIotKhUKltwXeFyAZ7I/e8oX7oAbiCR" +
++  "+99RvnQB3EBMCAAAAAAAAAAAAAAQiBJItGkBC57I/e8oX7oAbiCR+99RvnQB3ACBACABAAAAAAAA" +
++  "AAAAgUJBZQGeyP3vLF+6AG4gkfvfWb50AdxAAAgAAgAAAAAAAAAAAALBwAWeyP3vKF+6AG4gkfvf" +
++  "Ub50AdwA4hEAAAAAAAAAAADACgooJCYgcUlQZQCeyP2fPX1BAAdI5P53lC9dADeAGCACAAAAAAAA" +
++  "AAAAWFEkkGiSgACeyP3vLF+6AG4gkfvfUb50AdwAJEQaAEAAAAAAAAAAANAAAlEhwOUIFkQBnsj9" +
++  "9yhfpgBuIJH731G+dAHcACISIQEAAAAAAAAAAMCNAhmFPtVABQueyP3vKF+6AG4gkfvfUb50AdwA" +
++  "IipKACAAAAAAAAAAuEEkSrgBgGkjCohWjgQXnsj97yhfugBuIJH731m+dAHcQAAAIgEAAAAAAAAA" +
++  "AACRYEBdkQqeyP3vKF+6AG4gkfvfUb50AdxAABIgAAAAAAAAAAAAIBJUkKhcAJ7I/e8oX7oAbiCR" +
++  "+99RvnQB3EAEACAAAAAAAAAAAAAAokUECp7I/Z8jfUEAB0jk/neUL10ANxCREAEAAAAAAAAAAAAQ" +
++  "iQJUfpQKRJ7I/e8oX7oAbiCR+99RvnQB3EDEmAAgAAAAAAAAAEB0owCRCYmkgoKbBrgAnsj97yhf" +
++  "ugBuIJH731G+dAHcAAEaEAAAAAAAAAAAALhI2mAwuNQFnsj97yxfmgAOkMj97yhfugBuIKKaAAAA" +
++  "AAAAAAAAwEUQIeI6AB6DHYvB4rLCAJ7I/e8oX7oAbiCR+99RvnQB3AAiiiAeAAAAAAAAAAAAVpAh" +
++  "ykAHgEDEAAxqMAQAnsj97yhfugBuIJH731G+dAHcACISIQFAAAAAAAAAAGAVOciSSHZEq1BQAZ7I" +
++  "/fcsX6YAbiCR+99RvnQB3AAEQnoACAAAAAAAAACgRCSCBoABEhVUFmSXKgALnsj976hfugA2kMj9" +
++  "7yhfugBuABIoghABQAAAAAAAAAAAXAWgMMFdAGCBEAhInsj97yhfugBuIJH731G+dAHcAIIpAQAA" +
++  "AAAAAAAAwA1IJAaFwoUFgSkAnsj99yhfpgBuIJH731m+dAHcAEdMRAAAAAAAAAAAAEAEKAEBEpVK" +
++  "ZcD1A57I3fysX6YAbiCR+99RvnQB3MAYAwAIAAAAAAAAABCtHJEIedq0uLBYVCQAT2dnUwAAQA8C" +
++  "AAAAAACdzRm+BAAAAHkop7ssKigoJyoxMDAyLi0tLTEsLCwsJS0mKCcnJSMjGRgYAQEBAQEBAQEB" +
++  "AQEBAQGeyP3vKF+6AG4gkfvfUb50AdxAxIgEAAAAAAAAAAAARCtKkKOCiQpDjiaeyP3vKF+6AG4g" +
++  "kfvfWb50AdxAREIkAAAAAAAAAAAAIBIFSGCgWiwFnsj97yhfugBuIJH731G+dAHcQIAREAAAAAAA" +
++  "AAAAALhcBAZowXYoAJ7I/e8oX7oAbiCR+99RvnQB3EDECAAAAAAAAAAAAAC4CCJEUKgKAJ7I/e8o" +
++  "X7oAbiCR+99RvnQB3ACkSCAAAAAAAAAAAAAAQAkQCBSFwsBCBp7I/e8oX5oAbiCR+99RvnQB3EBE" +
++  "ESoRAAgAAAAAAABAsAgkE1wBYEANAJe7kGOIQASeyP3vKF+6AG4gkfvfWb50AdwAxxcBAAAAAAAA" +
++  "AAAABIAKEEGiE4cptBBgKSAB0ACeyP3vKF+6AG4gkfvvWb5MAdwAEqQTAQAAAAAAAAAAbiQC6gDo" +
++  "M6EiQKV75gbGwgCeyP3vKF+6AG4gkfvfUb50AdwAYk0DAAAAAAAAAADADZChUFE+gAdAC9wVMKvu" +
++  "ayIDEZ7I/e8oX7oAbiCR+99ZvnQB3AAE4pACAAAAAAAAAAAACiSiQh+8Z1ERAOhCiwGeyP3vKF+a" +
++  "AG4gkfvfUb50AdwAIiZIBAAAAAAAAAAAACunkAQGhUQlQKBrNACeyP3vKF+6AG4gkfvfUb50AdwA" +
++  "JERCFAEAAQAAAAAAAAAgDSBSRFBQEQB0AAaeyP3vKF+6AG4gkfs/e/qCAA4AsSIkAAAAAAAAAAAA" +
++  "QAmRQCRSUQFgaFFwqQCeyP3vKF+6AG4gkfv3aN9YArgBRJ0GAAEAAAAAAADApRAA9ACgDcAEVEZU" +
++  "KNyAy0UEnsj97yhfugBuIJH771G/dAEcAAGaOAAAAAAAAAAAAAh0Qq8AUAwLCO7FgAieyP3vKF+6" +
++  "AG4gkfvvWb5MAdwAEk8JAAAAAAAAAAAABCJEoAXAYFDpg2AHOZ7I/e8oX7oAbiCR+99RvnQB3AAS" +
++  "xkSAAAAAAAAAAMCKRBQqqAQKgluoUF0Ansj97yxfugBuIJH771G+TAHcAD4SAAAAAAAAAAAAiAQC" +
++  "KBRaDAYjEEH2KgCeyP3vKF+6AG4gkfvfUb50AdwAACBAAgABAAAAAAAAIIEKgYIEnsj97yhfugBu" +
++  "IJH731G+dAHcAMABKgAIAAAAAAAAACIoJAaVIS2NAXQDFBAAnsj97yhfugBuIJH731m+dAHcQIAE" +
++  "EAAAAAAAAAAAAACBQJMC5ACeyP3vLF+6AG4gkfvfWb50AdzAiQAAAAAAAAAAAAAAAoEAAoVCoagA" +
++  "nsj97yhfugBuIJH731m+dAHcQAACJAAAAAAAAAAAACAQJBKDqjABnsj97yhfugBuIJH731G+dAHc" +
++  "QBwBAAAAAAAAAAAAAAJBBIlEAgUqnsj97yxfugBuIJH731G+dAHcAAIQAQAAAAAAAAAAAABBnz5D" +
++  "BZ7I/e8sX7oAbiCR+99RvnQB3AACAgAAAAAAAAAAAAAAWBAAnsj97yxfugBuIJH731G+dAHcABIA" +
++  "AAAAAAAAAAAAAABYkQgukfvfUb50AdwAAgAAAAAAAAAAAAAAACACLpH731m+dAHcAAAAAAAAAAAA" +
++  "AAAAAAAALpH7zzN9aQK4AQAAAAAAAAAAAAAAAAAADg4ODg4ODg4ODg4ODg5PZ2dTAATAngIAAAAA" +
++  "AJ3NGb4FAAAAu7fwDyQBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEODg4ODg4O" +
++  "Dg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4ODg4=" +"";
++    fetch(sampleData)
++      .then(r => r.arrayBuffer())
++      .then(b => audioCtx.decodeAudioData(b))
++      .then(buf => sampleBuffer = buf);
+ 
+-    // Ensure the AudioContext is resumed on a user gesture.
+-    function resumeAudioContext() {
+-      if (audioCtx.state === "suspended") {
+-        audioCtx.resume().catch(e => console.error("AudioContext resume error:", e));
+-      }
++    function resumeAudioContext(){
++      if(audioCtx.state === 'suspended') audioCtx.resume();
+     }
+ 
+     /***************************************************************
+-     *  Honeycomb Grid Setup
++     * Honeycomb grid generation
+      ***************************************************************/
+-    // Hexagon dimensions.
+-    const hexRadius = 40;
++    const hexRadius = 60; // larger cells to ease CPU usage
+     const hexHeight = Math.sqrt(3) * hexRadius;
+     const hexWidth = 2 * hexRadius;
+-    // For a honeycomb layout, horizontal distance is 75% of the width.
+     const horizDist = hexWidth * 0.75;
+ 
+-    // Build the grid.
+     let hexagons = [];
+-    const cols = Math.ceil(canvas.width / horizDist) + 1;
+-    const rows = Math.ceil(canvas.height / (hexHeight * 0.75)) + 1;
+-
+-    for (let row = 0; row < rows; row++) {
+-      for (let col = 0; col < cols; col++) {
+-        const x = col * horizDist + ((row % 2) * horizDist / 2);
+-        const y = row * (hexHeight * 0.75);
+-        hexagons.push({
+-          row,
+-          col,
+-          x,
+-          y,
+-          energy: 0,            // Energy level (0 to 100)
+-          active: false,        // Whether the cell is manually toggled on
+-          assignedPitches: [],  // Fixed pitches for sonification
+-          neighbors: []         // Will hold references to neighbor hexagons
+-        });
++    function buildGrid(){
++      hexagons = [];
++      const cols = Math.ceil(canvas.width / horizDist) + 1;
++      const rows = Math.ceil(canvas.height / (hexHeight * 0.75)) + 1;
++      for(let row=0; row<rows; row++){
++        for(let col=0; col<cols; col++){
++          const x = col*horizDist + ((row%2)*horizDist/2);
++          const y = row*(hexHeight*0.75);
++          hexagons.push({
++            row,
++            col,
++            x,
++            y,
++            energy:0,
++            active:false,
++            assignedPitches:[],
++            neighbors:[]
++          });
++        }
+       }
++      hexagons.forEach(h => {
++        h.neighbors = hexagons.filter(o => {
++          if(o===h) return false;
++          const dx=o.x-h.x; const dy=o.y-h.y;
++          const dist=Math.sqrt(dx*dx+dy*dy);
++          return dist < hexRadius*1.9;
++        });
++      });
+     }
++    buildGrid();
+ 
+-    // For each hexagon, find its neighbors (using a distance threshold).
+-    hexagons.forEach(h => {
+-      h.neighbors = hexagons.filter(other => {
+-        if (other === h) return false;
+-        const dx = other.x - h.x;
+-        const dy = other.y - h.y;
+-        const dist = Math.sqrt(dx * dx + dy * dy);
+-        return dist < hexRadius * 1.9;
++    /***************************************************************
++     * Pitch assignment
++     ***************************************************************/
++    const scaleRatios = [1,9/8,5/4,45/32,3/2,5/3,15/8];
++    function getRandomUniqueElements(arr,count){
++      const tmp=arr.slice();
++      const out=[];
++      for(let i=0;i<count && tmp.length>0;i++){
++        const idx=Math.floor(Math.random()*tmp.length);
++        out.push(tmp.splice(idx,1)[0]);
++      }
++      return out;
++    }
++    function assignPitches(){
++      hexagons.forEach(h=>{
++        const ratios=getRandomUniqueElements(scaleRatios,6);
++        h.assignedPitches = ratios.map(r => {
++          const octave=Math.floor(Math.random()*8);
++          return 420*r*Math.pow(2,octave-3);
++        });
+       });
+-    });
++    }
++    assignPitches();
+ 
+     /***************************************************************
+-     *  Pitch Assignment for Sonification
++     * Particle system
+      ***************************************************************/
+-    // Use just intonation ratios for a C Lydian–inspired scale.
+-    const scaleRatios = [1, 9/8, 5/4, 45/32, 3/2, 5/3, 15/8];
++    const particles = [];
++    function spawnParticles(x,y,count,hue){
++      for(let i=0;i<count;i++){
++        const angle=Math.random()*Math.PI*2;
++        const speed=Math.random()*50+20;
++        particles.push({
++          x,
++          y,
++          vx:Math.cos(angle)*speed,
++          vy:Math.sin(angle)*speed,
++          life:1.5,
++          size:2+Math.random()*2,
++          hue
++        });
++      }
++    }
+ 
+-    // Utility: randomly select unique elements.
+-    function getRandomUniqueElements(arr, count) {
+-      const arrCopy = arr.slice();
+-      const result = [];
+-      for (let i = 0; i < count && arrCopy.length > 0; i++) {
+-        const idx = Math.floor(Math.random() * arrCopy.length);
+-        result.push(arrCopy.splice(idx, 1)[0]);
++    function updateParticles(dt){
++      for(let i=particles.length-1;i>=0;i--){
++        const p=particles[i];
++        p.x += p.vx*dt;
++        p.y += p.vy*dt;
++        p.vx*=0.98;
++        p.vy*=0.98;
++        p.life -= dt;
++        if(p.life<=0) particles.splice(i,1);
+       }
+-      return result;
+     }
+ 
+-    // Assign six fixed pitches to each hexagon.
+-    hexagons.forEach(h => {
+-      const chosenRatios = getRandomUniqueElements(scaleRatios, 6);
+-      h.assignedPitches = chosenRatios.map(ratio => {
+-        // Randomly choose an octave (0 to 7) so that octave 3 approximates 420 Hz.
+-        const octave = Math.floor(Math.random() * 8);
+-        return 420 * ratio * Math.pow(2, octave - 3);
++    function drawParticles(){
++      particles.forEach(p=>{
++        ctx.fillStyle=`hsla(${p.hue},100%,70%,${Math.max(0,p.life)})`;
++        ctx.beginPath();
++        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
++        ctx.fill();
+       });
+-    });
++    }
+ 
+     /***************************************************************
+-     *  Drawing Functions
++     * Drawing functions
+      ***************************************************************/
+-    function drawHexagon(h) {
++    let globalHue=0;
++    function drawHexagon(h){
+       ctx.save();
+       ctx.beginPath();
+-      for (let i = 0; i < 6; i++) {
+-        const angle = Math.PI / 180 * (60 * i - 30);
+-        const x_i = h.x + hexRadius * Math.cos(angle);
+-        const y_i = h.y + hexRadius * Math.sin(angle);
+-        if (i === 0) {
+-          ctx.moveTo(x_i, y_i);
+-        } else {
+-          ctx.lineTo(x_i, y_i);
+-        }
++      for(let i=0;i<6;i++){
++        const ang=Math.PI/180*(60*i-30);
++        const x=h.x+hexRadius*Math.cos(ang);
++        const y=h.y+hexRadius*Math.sin(ang);
++        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+       }
+       ctx.closePath();
+-
+-      // Base color: a mellow yellowish-brown.
+-      const baseColor = { r: 120, g: 090, b: 050 };
+-      const brightnessFactor = h.energy / 100;
+-      const r = Math.min(255, baseColor.r + brightnessFactor * (255 - baseColor.r));
+-      const g = Math.min(255, baseColor.g + brightnessFactor * (255 - baseColor.g));
+-      const b = Math.min(255, baseColor.b + brightnessFactor * (255 - baseColor.b));
+-      ctx.fillStyle = `rgb(${Math.floor(r)}, ${Math.floor(g)}, ${Math.floor(b)})`;
+-      ctx.fill();
+-
+-      // Add a strong glow if there is energy.
+-      if (h.energy > 0) {
+-        ctx.shadowColor = `rgba(255, 255, 200, ${brightnessFactor})`;
+-        ctx.shadowBlur = 90 * brightnessFactor;
++      const bright=h.energy/100;
++      const hue=(globalHue+h.row*10+h.col*10)%360;
++      ctx.fillStyle=`hsl(${hue},70%,${20+bright*50}%)`;
++      if(h.energy>0){
++        ctx.shadowColor=`hsla(${hue},100%,70%,${bright})`;
++        ctx.shadowBlur=30*bright;
+       }
+-      ctx.strokeStyle = "#8b6f47";
++      ctx.fill();
++      ctx.strokeStyle='rgba(50,30,10,0.6)';
+       ctx.stroke();
+       ctx.restore();
+     }
+ 
+     /***************************************************************
+-     *  Simulation Update Loop
++     * Sound
+      ***************************************************************/
+-    let lastTime = performance.now();
+-    const activeRate = 80;  // Energy increase per second for active cells.
+-    const decayRate = 5;    // Energy decay per second for inactive cells.
+-
+-    function update(time) {
+-      const dt = (time - lastTime) / 1000;
+-      lastTime = time;
+-
+-      // Update energy levels:
+-      hexagons.forEach(h => {
+-        if (h.active) {
+-          // Active cells continuously accumulate energy (up to 100).
+-          h.energy = Math.min(100, h.energy + activeRate * dt);
+-        } else {
+-          // Inactive cells gradually lose energy.
+-          h.energy = Math.max(0, h.energy - decayRate * dt);
+-        }
+-      });
+-
+-      draw();
+-      requestAnimationFrame(update);
++    function playChord(h){
++      let num=0;
++      if(h.energy>=10 && h.energy<50) num=3;
++      else if(h.energy>=50 && h.energy<90) num=4;
++      else if(h.energy>=90 && h.energy<100) num=5;
++      else if(h.energy>=100) num=6;
++      if(num===0) return;
++      const freqs=getRandomUniqueElements(h.assignedPitches,num);
++      freqs.forEach(f=>playSample(f,0.7));
+     }
+ 
+-    function draw() {
+-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+-      // Optionally, one might add additional background effects here.
+-      hexagons.forEach(h => drawHexagon(h));
++    function playSample(frequency,duration){
++      if(!sampleBuffer) return;
++      const now=audioCtx.currentTime;
++      const src=audioCtx.createBufferSource();
++      src.buffer=sampleBuffer;
++      src.playbackRate.value=frequency/261.63;
++      const gain=audioCtx.createGain();
++      gain.gain.setValueAtTime(0,now);
++      gain.gain.linearRampToValueAtTime(0.4,now+0.02);
++      gain.gain.exponentialRampToValueAtTime(0.0001,now+duration);
++      src.connect(gain);
++      gain.connect(masterGain);
++      src.start(now);
++      src.stop(now+duration+0.1);
+     }
+-    requestAnimationFrame(update);
+ 
+     /***************************************************************
+-     *  Energy Spillage (Propagation) Mechanism
++     * Interaction
+      ***************************************************************/
+-    // Every 100ms, allow energy to "spill" from high–energy hexagons to neighbors.
+-    const spillageInterval = 100; // in milliseconds
+-    const spillageThreshold = 30; // Minimum energy to consider spillage.
+-    const spillageAmount = 50;    // Energy amount transferred per spill.
+-    const spillageProbability = 0.2; // Chance per neighbor per interval.
+-
+-    setInterval(() => {
+-      hexagons.forEach(h => {
+-        if (h.energy >= spillageThreshold) {
+-          h.neighbors.forEach(n => {
+-            if (Math.random() < spillageProbability && h.energy >= spillageAmount) {
+-              h.energy -= spillageAmount;
+-              n.energy = Math.min(100, n.energy + spillageAmount);
+-              triggerSound(n);
+-            }
+-          });
+-        }
+-      });
+-    }, spillageInterval);
++    let mouseDown=false;
++    canvas.addEventListener('pointerdown',e=>{mouseDown=true;handleInteraction(e);resumeAudioContext();});
++    canvas.addEventListener('pointermove',e=>{if(mouseDown) handleInteraction(e);});
++    window.addEventListener('pointerup',()=>{mouseDown=false;});
+ 
+-    /***************************************************************
+-     *  Sonification
+-     ***************************************************************/
+-    // Trigger sound based on the cell's current energy.
+-    // The number of pitches is determined by energy levels:
+-    //   10–50: 3 pitches, 50–90: 4 pitches, 90–100: 5 pitches, and 100: 6 pitches.
+-    function triggerSound(h) {
+-      let numPitches = 0;
+-      if (h.energy >= 10 && h.energy < 50) {
+-        numPitches = 3;
+-      } else if (h.energy >= 50 && h.energy < 90) {
+-        numPitches = 4;
+-      } else if (h.energy >= 90 && h.energy < 100) {
+-        numPitches = 5;
+-      } else if (h.energy >= 100) {
+-        numPitches = 6;
++    canvas.addEventListener('click',e=>{
++      const {x,y}=getPointerPos(e);
++      const h=getHexagonAt(x,y);
++      if(h){
++        h.active=!h.active;
++        spawnParticles(h.x,h.y,10,globalHue);
++        playChord(h);
+       }
+-      if (numPitches > 0) {
+-        const pitches = getRandomUniqueElements(h.assignedPitches, numPitches);
+-        pitches.forEach(freq => playTone(freq, 0.5));
++    });
++
++    function handleInteraction(e){
++      const {x,y}=getPointerPos(e);
++      const h=getHexagonAt(x,y);
++      if(h){
++        h.energy=Math.min(100,h.energy+50);
++        spawnParticles(h.x,h.y,5,globalHue);
++        playChord(h);
+       }
+     }
+-
+-    // Play a tone with a warm, mellow timbre using a sine oscillator.
+-    function playTone(frequency, duration) {
+-      const osc = audioCtx.createOscillator();
+-      osc.type = "sawtooth";
+-      osc.frequency.value = frequency;
+-
+-      const gainNode = audioCtx.createGain();
+-      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+-      gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+-      gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+-
+-      osc.connect(gainNode);
+-      gainNode.connect(masterGain);
+-      osc.start(audioCtx.currentTime);
+-      osc.stop(audioCtx.currentTime + duration);
++    function getPointerPos(e){
++      const rect=canvas.getBoundingClientRect();
++      return {x:e.clientX-rect.left,y:e.clientY-rect.top};
+     }
+ 
+-    /***************************************************************
+-     *  User Interaction: Toggle Activation on Click
+-     ***************************************************************/
+-    // Clicking on a hexagon toggles its "active" state.
+-    canvas.addEventListener("click", (e) => {
+-      resumeAudioContext(); // Ensure the audio context is active.
+-      const rect = canvas.getBoundingClientRect();
+-      const x = e.clientX - rect.left;
+-      const y = e.clientY - rect.top;
+-      const hex = getHexagonAt(x, y);
+-      if (hex) {
+-        hex.active = !hex.active;
+-        // Optionally, trigger an immediate sound on toggle.
+-        triggerSound(hex);
+-      }
+-    });
+-
+-    // Utility: Determine if a point lies within a polygon.
+-    function pointInPolygon(point, vertices) {
+-      let inside = false;
+-      for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+-        const xi = vertices[i].x, yi = vertices[i].y;
+-        const xj = vertices[j].x, yj = vertices[j].y;
+-        const intersect = ((yi > point.y) !== (yj > point.y)) &&
+-          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+-        if (intersect) inside = !inside;
++    function pointInPolygon(point,vertices){
++      let inside=false;
++      for(let i=0,j=vertices.length-1;i<vertices.length;j=i++){
++        const xi=vertices[i].x, yi=vertices[i].y;
++        const xj=vertices[j].x, yj=vertices[j].y;
++        const intersect=((yi>point.y)!=(yj>point.y)) &&
++          (point.x<(xj-xi)*(point.y-yi)/(yj-yi)+xi);
++        if(intersect) inside=!inside;
+       }
+       return inside;
+     }
+ 
+-    // Utility: Given an (x, y) coordinate, find the hexagon containing it.
+-    function getHexagonAt(x, y) {
+-      for (let i = 0; i < hexagons.length; i++) {
+-        const h = hexagons[i];
+-        const vertices = [];
+-        for (let j = 0; j < 6; j++) {
+-          const angle = Math.PI / 180 * (60 * j - 30);
+-          vertices.push({ x: h.x + hexRadius * Math.cos(angle), y: h.y + hexRadius * Math.sin(angle) });
+-        }
+-        if (pointInPolygon({ x, y }, vertices)) {
+-          return h;
++    function getHexagonAt(x,y){
++      for(let i=0;i<hexagons.length;i++){
++        const h=hexagons[i];
++        const verts=[];
++        for(let j=0;j<6;j++){
++          const a=Math.PI/180*(60*j-30);
++          verts.push({x:h.x+hexRadius*Math.cos(a),y:h.y+hexRadius*Math.sin(a)});
+         }
++        if(pointInPolygon({x,y},verts)) return h;
+       }
+       return null;
+     }
++
+     /***************************************************************
+-     *  End of Application Code
++     * Simulation
+      ***************************************************************/
++    let lastTime=performance.now();
++    const activeRate=80;
++    const decayRate=5;
++    const spillageInterval=0.1; // seconds
++    const spillageThreshold=30;
++    const spillageAmount=50;
++    const spillageProb=0.2;
++    let spillageTimer=0;
++
++    function update(time){
++      const dt=(time-lastTime)/1000;
++      lastTime=time;
++      globalHue=(globalHue+dt*20)%360;
++
++      hexagons.forEach(h=>{
++        if(h.active) h.energy=Math.min(100,h.energy+activeRate*dt);
++        else h.energy=Math.max(0,h.energy-decayRate*dt);
++      });
++
++      spillageTimer+=dt;
++      if(spillageTimer>spillageInterval){
++        spillageTimer=0;
++        hexagons.forEach(h=>{
++          if(h.energy>=spillageThreshold){
++            h.neighbors.forEach(n=>{
++              if(Math.random()<spillageProb && h.energy>=spillageAmount){
++                h.energy-=spillageAmount;
++                n.energy=Math.min(100,n.energy+spillageAmount);
++                spawnParticles(n.x,n.y,3,globalHue);
++                playChord(n);
++              }
++            });
++          }
++        });
++      }
++
++      updateParticles(dt);
++      draw();
++      requestAnimationFrame(update);
++    }
++
++    function draw(){
++      const grad=ctx.createRadialGradient(canvas.width/2,canvas.height/2,100,canvas.width/2,canvas.height/2,Math.max(canvas.width,canvas.height));
++      grad.addColorStop(0,`hsl(${(globalHue+180)%360},40%,10%)`);
++      grad.addColorStop(1,`hsl(${globalHue},40%,20%)`);
++      ctx.fillStyle=grad;
++      ctx.fillRect(0,0,canvas.width,canvas.height);
++
++      hexagons.forEach(drawHexagon);
++      drawParticles();
++    }
++
++    requestAnimationFrame(update);
+   </script>
+ </body>
+ </html>
+ 
+EOF
+)
